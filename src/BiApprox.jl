@@ -2,9 +2,11 @@ module BiApprox
 
 using LinearAlgebra
 
+export kernel_approx_ul, approx_values, train_model
+
 gaussKern(x, y; σ=1) = exp(- norm(x-y)^2 / (2σ^2) )
 
-function train_model(F::Function, X::Matrix, Y::Matrix)
+function train_model(Fs::Vector, X::Matrix, Y::Matrix, kernel)
     """
     X is a N×D, that contains N row vectors in R^D
     Y like X
@@ -12,29 +14,24 @@ function train_model(F::Function, X::Matrix, Y::Matrix)
 
     N, D = size(X)
 
-    z = [ F(X[i,:], Y[i,:]) for i = 1:N ]
 
-    K = [ Kernel( X[i,:], X[j,:] ) for i=1:N,j=1:N ]
+    K = [ kernel( X[i,:], X[j,:] ) for i=1:N,j=1:N ]
 
+    z = Fs
     # z = Kα
     # α = K'z
     α = inv(K) * z
 
+    return α
 
-    F̂s = zeros(N)
-    for i = 1:N
-        F̂s[i] = F̂(X[i,:], α, X)
-        @assert F̂s[i] ≈ z[i]
-    end
-    
-    return α, F̂s, z
+
 end
 
 
-F̂(x, α, X) = dot( α, [Kernel(x, X[i,:]) for i = 1:size(X,1)]  )
-approx_values(α::Vector, X::Vector, X_data::Matrix) = [F̂(X[i,:], α, X_data) for i = 1:size(X, 1)]
+F̂(x, α, X, kernel) = dot( α, [kernel(x, X[i,:]) for i = 1:size(X,1)]  )
+approx_values(α::Vector, X::Matrix, X_data::Matrix, kernel) = [F̂(X[i,:], α, X_data, kernel) for i = 1:size(X, 1)]
 
-function kernel_approx_ul(F::Function,
+function kernel_approx_ul(Fs::Vector,
                      X_test::Matrix,
                     X_train::Matrix,
                     Y_train::Matrix;
@@ -45,9 +42,9 @@ function kernel_approx_ul(F::Function,
     Y like X
     """
 
-    α, F̂s, z = train_model(F, X_train, Y_train)
+    α = train_model(Fs, X_train, Y_train, kernel)
 
-    return approx_values(α, X_test, X_train)
+    return approx_values(α, X_test, X_train, kernel), α
     
 end
 
