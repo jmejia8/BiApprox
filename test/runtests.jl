@@ -34,8 +34,6 @@ function test1()
 
     F̂s_test, α = kernel_approx_ul(Fs,X_test, X,Y)
 
-    println(sum(Fs_test- F̂s_test)/N)
-
     true
 
 
