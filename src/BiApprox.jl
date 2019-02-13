@@ -29,7 +29,7 @@ end
 
 
 F̂(x::Vector, α::Vector, X::Matrix; kernel::Function = gaussKern) = dot( α, [kernel(x, X[i,:]) for i = 1:size(X,1)]  )
-approx_values(α::Vector, X::Matrix, X_data::Matrix; kernel::Function = gaussKern) = [F̂(X[i,:], α, X_data, kernel) for i = 1:size(X, 1)]
+approx_values(α::Vector, X::Matrix, X_data::Matrix; kernel::Function = gaussKern) = [F̂(X[i,:], α, X_data, kernel = kernel) for i = 1:size(X, 1)]
 
 function kernel_approx_ul(Fs::Vector,
                      X_test::Matrix,
@@ -42,9 +42,9 @@ function kernel_approx_ul(Fs::Vector,
     Y like X
     """
 
-    α = train_model(Fs, X_train, Y_train, kernel)
+    α = train_model(Fs, X_train, Y_train, kernel = kernel)
 
-    return approx_values(α, X_test, X_train, kernel), α
+    return approx_values(α, X_test, X_train, kernel = kernel), α
     
 end
 
