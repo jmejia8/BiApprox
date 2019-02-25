@@ -14,21 +14,31 @@ function train_model(Fs::Vector, X::Matrix, Y::Matrix, kernel)
 
     N, D = size(X)
 
+    A = ones(N+1, N+1)
 
-    K = [ kernel( X[i,:], X[j,:] ) for i=1:N,j=1:N ]
+    y = zeros(N+1)
+    y[1:N] = Fs
 
-    z = Fs
-    # z = Kα
-    # α = K'z
-    α = inv(K) * z
+    for i = 1:N
+        for j = 1:N
+            A[i, j] = kernel(X[i,:], X[j,:])
+        end
+    end
 
-    return α
+    A[N+1, N+1] = 0.0
+
+    # y = Ab
+    # b = A'y
+    
+    b = inv(A) * y
+
+    return b
 
 
 end
 
 
-F̂(x, α, X, kernel) = dot( α, [kernel(x, X[i,:]) for i = 1:size(X,1)]  )
+F̂(x, b, X, kernel) = dot( b[1:end-1], [kernel(x, X[i,:]) for i = 1:size(X,1)] ) + b[end]
 approx_values(α::Vector, X::Matrix, X_data::Matrix, kernel) = [F̂(X[i,:], α, X_data, kernel) for i = 1:size(X, 1)]
 
 function kernel_approx_ul(Fs::Vector,
