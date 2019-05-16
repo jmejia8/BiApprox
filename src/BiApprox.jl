@@ -5,9 +5,9 @@ import MLKernels: Kernel, kernel, GaussianKernel
 
 export kernel_approx_ul, approx_values, train_model, F̂
 
-gaussKern(x::Vector, y::Vector; σ::Real=1.0) = MLKernels.kernel(GaussianKernel(σ), x, y)
+gaussKern(x::Array{Float64,1}, y::Array{Float64,1}; σ::Float64=1.0) = kernel(GaussianKernel(σ), x, y)
 
-function train_model(Fs::Vector, X::Matrix; k::Kernel = GaussianKernel(1.0), λ::Real = 0.0 )
+function train_model(Fs::Array{Float64,1}, X::Array{Float64,2}; k::Kernel = GaussianKernel(1.0), λ::Float64 = 0.0 )
     """
     X is a N×D, that contains N row vectors in R^D
     """
@@ -39,13 +39,19 @@ function train_model(Fs::Vector, X::Matrix; k::Kernel = GaussianKernel(1.0), λ:
 
 end
 
+function train_model(Fs::Array{Float64,1}, X_train::Array{Float64,1}; k::Kernel = GaussianKernel(1.0), λ::Float64 = 0.0 )
+    train_model(Fs, reshape(X_train, length(X_train), 1), k = k)
+end
 
-F̂(x, b, X; k::Kernel = GaussianKernel) = dot( b[1:end-1], [kernel(k,x, X[i,:]) for i = 1:size(X,1)] ) + b[end]
-approx_values(α::Vector, X::Matrix, X_data::Matrix; k::Kernel = GaussianKernel) = [F̂(X[i,:], α, X_data, k = k) for i = 1:size(X, 1)]
 
-function kernel_approx_ul(Fs::Vector,
-                     X_test::Matrix,
-                    X_train::Matrix;
+F̂(x::Array{Float64,1}, b::Array{Float64,1}, X::Array{Float64}; k::Kernel = GaussianKernel()) = dot( b[1:end-1], [kernel(k,x, X[i,:]) for i = 1:size(X,1)] ) + b[end]
+
+
+approx_values(α::Array{Float64,1}, X::Array{Float64,2}, X_train::Array{Float64,2}; k::Kernel = GaussianKernel()) = [F̂(X[i,:], α, X_train, k = k) for i = 1:size(X, 1)]
+
+function kernel_approx_ul(Fs::Array{Float64,1},
+                     X_test::Array{Float64,2},
+                    X_train::Array{Float64,2};
                      k::Kernel=GaussianKernel(1.0))
 
     """
@@ -55,6 +61,21 @@ function kernel_approx_ul(Fs::Vector,
     α = train_model(Fs, X_train, k = k)
 
     return approx_values(α, X_test, X_train, k = k), α
+    
+end
+
+function kernel_approx_ul(Fs::Array{Float64,1},
+                     X_test::Array{Float64,1},
+                    X_train::Array{Float64,1};
+                     k::Kernel=GaussianKernel(1.0))
+
+    """
+    X is a N×1 array, that contains N row vectors in R^D
+    """
+
+
+
+    return kernel_approx_ul(Fs, reshape(X_test, length(X_test), 1), reshape(X_train, length(X_train), 1), k=k)
     
 end
 
