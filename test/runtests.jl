@@ -32,7 +32,7 @@ function test1()
     Fs_test =  [ F(X_test[i,:], Y_test[i,:]) for i =1:N ]
     
 
-    F̂s_test, α = kernel_approx_ul(Fs,X_test, X,Y)
+    F̂s_test, α = kernel_approx_ul(Fs,X_test, X)
 
     println(sum(abs.(Fs_test- F̂s_test))/N)
     true

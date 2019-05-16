@@ -1,15 +1,15 @@
 module BiApprox
 
-using LinearAlgebra
+import LinearAlgebra: norm, dot
+import MLKernels: Kernel, kernel, GaussianKernel
 
 export kernel_approx_ul, approx_values, train_model, F̂
 
-gaussKern(x::Vector, y::Vector; σ=1) = exp(- norm(x-y)^2 / (2σ^2) )
+gaussKern(x::Vector, y::Vector; σ::Real=1.0) = MLKernels.kernel(GaussianKernel(σ), x, y)
 
-function train_model(Fs::Vector, X::Matrix, Y::Matrix; kernel::Function = gaussKern )
+function train_model(Fs::Vector, X::Matrix; k::Kernel = GaussianKernel(1.0), λ::Real = 0.0 )
     """
     X is a N×D, that contains N row vectors in R^D
-    Y like X
     """
 
     N, D = size(X)
@@ -21,14 +21,16 @@ function train_model(Fs::Vector, X::Matrix, Y::Matrix; kernel::Function = gaussK
 
     for i = 1:N
         for j = 1:N
-            A[i, j] = kernel(X[i,:], X[j,:])
+            A[i, j] = kernel(k, X[i,:], X[j,:])
         end
+
+        A[i, i] += λ
     end
 
     A[N+1, N+1] = 0.0
 
     # y = Ab
-    # b = A'y
+    # b = A⁻¹ ⋅ y
     
     b = inv(A) * y
 
@@ -38,23 +40,21 @@ function train_model(Fs::Vector, X::Matrix, Y::Matrix; kernel::Function = gaussK
 end
 
 
-F̂(x, b, X; kernel::Function = gaussKern) = dot( b[1:end-1], [kernel(x, X[i,:]) for i = 1:size(X,1)] ) + b[end]
-approx_values(α::Vector, X::Matrix, X_data::Matrix; kernel::Function = gaussKern) = [F̂(X[i,:], α, X_data, kernel = kernel) for i = 1:size(X, 1)]
+F̂(x, b, X; k::Kernel = GaussianKernel) = dot( b[1:end-1], [kernel(k,x, X[i,:]) for i = 1:size(X,1)] ) + b[end]
+approx_values(α::Vector, X::Matrix, X_data::Matrix; k::Kernel = GaussianKernel) = [F̂(X[i,:], α, X_data, k = k) for i = 1:size(X, 1)]
 
 function kernel_approx_ul(Fs::Vector,
                      X_test::Matrix,
-                    X_train::Matrix,
-                    Y_train::Matrix;
-                     kernel::Function=gaussKern)
+                    X_train::Matrix;
+                     k::Kernel=GaussianKernel(1.0))
 
     """
     X is a N×D matrix, that contains N row vectors in R^D
-    Y like X
     """
 
-    α = train_model(Fs, X_train, Y_train, kernel = kernel)
+    α = train_model(Fs, X_train, k = k)
 
-    return approx_values(α, X_test, X_train, kernel = kernel), α
+    return approx_values(α, X_test, X_train, k = k), α
     
 end
 
