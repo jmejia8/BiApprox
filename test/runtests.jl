@@ -40,4 +40,17 @@ function test1()
 
 end
 
+function test2()
+    f(x) = sum(x.^2)
+    X = randn(100, 2)
+
+    method = KernelInterpolation(f, X)
+
+    X_test = rand(97, 2)
+    evaluate(X_test, method)
+    true
+
+end
+
 @test test1()
+@test test2()

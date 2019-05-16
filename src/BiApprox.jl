@@ -3,7 +3,11 @@ module BiApprox
 import LinearAlgebra: norm, dot
 import MLKernels: Kernel, kernel, GaussianKernel
 
+include("structures.jl")
+include("kernelInterpolation.jl")
+
 export kernel_approx_ul, approx_values, train_model, F̂
+export train, evaluate, KernelInterpolation, Data
 
 gaussKern(x::Array{Float64,1}, y::Array{Float64,1}; σ::Float64=1.0) = kernel(GaussianKernel(σ), x, y)
 

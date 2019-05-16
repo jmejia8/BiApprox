@@ -4,20 +4,20 @@ using Plots
 plotly(legend=false)
 
 function test_2d()
-	N = 200
-	X_train = -100 .+ 200rand(N, 2) 
+	N = 100
+	X_train = -1 .+ 2rand(N, 2) 
 
-	X = Y = range(-100, 100, length = 100)
-	f(x) = cec17_test_func(x, 5) #sum(x.^2)
+	X = Y = range(-1, 1, length = 100)
+	f(x) = cec17_test_func(100x, 3) #sum(x.^2)
 
 	fs = [ f(X_train[i,:]) for i=1:size(X_train, 1) ]
 
-	a = train_model(fs, X_train, λ=3.5)
+	a = train_model(fs, X_train, λ=0.1)
 
 	plot(title="Plot")
 	surface(X, Y, (x,y)->f([x,y]))
 	scatter!(X_train[:,1], X_train[:,2], fs; markersize=1)
-	surface!(X, Y, (x,y)->F̂([x,y], a, X_train))
+	surface!(X, Y, (x,y)->F̂([x,y], a, X_train); fill=:blues)
 end
 
 function test_1d()
@@ -37,5 +37,5 @@ function test_1d()
 	plot!(X, ff)
 end
 
-test_2d()
+test_1d()
 
