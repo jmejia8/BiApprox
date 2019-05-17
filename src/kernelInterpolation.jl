@@ -29,7 +29,15 @@ function train!(method::KernelInterpolation)
     method
 end
 
+train(method::KernelInterpolation) = train!(method)
+
+
 function evaluate(x::Array{Float64, 1}, method::KernelInterpolation)
+    if length(method.coeffs) == 0
+        @info("Training method...")
+        train!(method)
+    end
+
     X = method.trainingData.Xs
     k = method.kernel
     K = [kernel(k,x, X[i,:]) for i = 1:size(X,1)]
@@ -39,12 +47,10 @@ end
 
 function evaluate(X::Array{Float64, 2}, method::KernelInterpolation)
     if length(method.coeffs) == 0
+        @info("Training method...")
         train!(method)
     end
 
-    b = method.coeffs
-    X_train = method.trainingData.Xs
-
-    Float64[ evaluate(X_train[i,:], method) for i=1:size(X_train,1) ]
+    Float64[ evaluate(X[i,:], method) for i=1:size(X,1) ]
 end
 
