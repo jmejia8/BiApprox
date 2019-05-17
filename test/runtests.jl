@@ -34,7 +34,6 @@ function test1()
 
     F̂s_test, α = kernel_approx_ul(Fs,X_test, X)
 
-    println(sum(abs.(Fs_test- F̂s_test))/N)
     true
 
 
@@ -42,13 +41,23 @@ end
 
 function test2()
     f(x) = sum(x.^2)
-    X = randn(100, 2)
+    N = 100
+    D = 11
+    X = randn(N, D)
 
     method = KernelInterpolation(f, X)
 
-    X_test = rand(97, 2)
-    evaluate(X_test, method)
-    true
+    X_test = rand(97, D)
+
+    ff = evaluate(X_test, method)
+
+    method2 = KernelInterpolation(f, X)
+    train!(method2)
+    ff2 = [evaluate(X_test[i,:], method2) for i = 1:size(X_test, 1)]
+
+
+    return sum(abs.(ff - ff2)) ≈ 0.0
+
 
 end
 
