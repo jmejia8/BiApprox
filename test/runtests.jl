@@ -61,5 +61,28 @@ function test2()
 
 end
 
+function test3()
+    f(x) = sum(x.^2)
+    N = 100
+    D = 11
+    X = randn(N, D)
+    X2 = randn(N, D)
+
+    model = KernelInterpolation(f, X; λ = 0.1)
+    f_approx = approximate(model)
+
+    model2 = KernelInterpolation(f, X2; λ = 0.1)
+    f_approx2 = approximate(model)
+
+    X_test = rand(97, D)
+
+    ff = [f_approx( X_test[i,:] ) for i = 1:15 ]
+    ff2 = [f_approx2( X_test[i,:] ) for i = 1:15 ]
+
+    return sum(abs.(ff - ff2)) ≈ 0.0
+
+end
+
 @test test1()
 @test test2()
+@test test3()
