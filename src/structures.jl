@@ -1,3 +1,5 @@
+abstract type AbstractModel end
+
 mutable struct Data
     Fs::Array{Float64, 1} # Fs = [ f(x) for x in X ]
     # X is a N×D matrix, that contains N row vectors in R^D
@@ -34,7 +36,7 @@ end
 
 
 
-mutable struct KernelInterpolation
+mutable struct KernelInterpolation <: AbstractModel
     kernel::Kernel
     trainingData::Data
     coeffs::Array{Float64}
