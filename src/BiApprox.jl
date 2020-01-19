@@ -2,6 +2,7 @@ module BiApprox
 
 import LinearAlgebra: norm, dot
 import MLKernels: Kernel, kernel, GaussianKernel
+import Random: randperm
 
 
 export kernel_approx_ul, approx_values, train_model, F̂
