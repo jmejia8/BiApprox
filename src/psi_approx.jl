@@ -1,5 +1,5 @@
-mutable struct LL_approx{T}
-    models::Vector{T}
+mutable struct LL_approx
+    models::Vector{AbstractModel}
     λ::Vector{Float64}
     indexes::Matrix{Bool}
     
@@ -12,23 +12,60 @@ mutable struct LL_approx{T}
     ys::Vector{Function}
 
     approx_error::Float64
+    μ_X::Vector{Float64}
+    μ_Y::Vector{Float64}
+    σ_X::Vector{Float64}
+    σ_Y::Vector{Float64}
 
 end
 
 function LL_approx( X_train,
                     Y_train;
-                    models = nothing,
+                    models = AbstractModel[],
                     λ = 1e-5,
                     indexes = zeros(Bool, 0, 0),
-                    X_test  = zeros(Bool, 0, 0),
-                    Y_test  = zeros(Bool, 0, 0),
+                    X_test  = zeros(Float64, 0, 0),
+                    Y_test  = zeros(Float64, 0, 0),
                     ys = Function[],
                     p_train = 0.8,
-                    approx_error = 0.0)
+                    approx_error = Inf,
+                    normalize = true)
     
+    if size(X_train, 1) != size(Y_train, 1)
+        @error("Check size of the train set (X_train, Y_train)")
+    end
 
-    # TODO
-    LL_approx(models, λ, indexes, X_train, Y_train, X_test, Y_test, ys, approx_error)
+    if normalize
+        μ_X = mean( X_train, dims=1 )
+        μ_Y = mean( Y_train, dims=1 )
+        σ_X = std( X_train, dims=1 )
+        σ_Y = std( Y_train, dims=1 )
+
+        X_train = ( X_train .- μ_X ) ./ σ_X
+        Y_train = ( Y_train .- μ_Y ) ./ σ_Y
+    else
+        μ_X = 0.0
+        μ_Y = 0.0
+        σ_X = 0.0
+        σ_Y = 0.0
+    end
+
+    if (isempty(X_test) || isempty(Y_test))
+        n = round(p*size(X_train, 1))
+        idx = randperm(size(X_train, 1))
+
+        X_test = X_train[idx[n+1:end], :]
+        Y_test = X_train[idx[n+1:end], :]
+
+        X_train = X_train[idx[1:n], :]
+        Y_train = X_train[idx[1:n], :]
+    else
+        X_test = ( X_test .- μ_X ) ./ σ_X
+        Y_test = ( Y_test .- μ_Y ) ./ σ_Y
+    end
+
+    LL_approx(models, λ, indexes, X_train, Y_train, X_test, Y_test, ys,
+                approx_error, μ_X, μ_Y, σ_X, σ_Y)
 end
 
 function gen_y_approx(X, Y; indexes = ones(Bool, size(X, 2)), λ=1e-2)
