@@ -12,7 +12,7 @@ function train!(method::KernelInterpolation)
 
     for i = 1:N
         for j = 1:N
-            A[i, j] = kernel(k, X[i,:], X[j,:])
+            A[i, j] = kernel(k, view(X, i,:), view(X, j,:))
         end
 
         A[i, i] += method.λ
@@ -36,13 +36,8 @@ function evaluate(x::Real, method::KernelInterpolation)
         @info("Training method...")
         train!(method)
     end
-
-    X = method.trainingData.Xs
-    k = method.kernel
-    xx = Float64[x]
-    K = [kernel(k,xx, X[i,:]) for i = 1:size(X,1)]
-
-    dot( method.coeffs[1:end-1], K ) + method.coeffs[end]
+    
+    evaluate(Float64[x], method)
 end
 
 function evaluate(x::Array{Float64, 1}, method::KernelInterpolation)
@@ -53,9 +48,9 @@ function evaluate(x::Array{Float64, 1}, method::KernelInterpolation)
 
     X = method.trainingData.Xs
     k = method.kernel
-    K = [kernel(k,x, X[i,:]) for i = 1:size(X,1)]
+    K = [kernel(k,x, view(X, i,:)) for i = 1:size(X,1)]
 
-    dot( method.coeffs[1:end-1], K ) + method.coeffs[end]
+    dot( view(method.coeffs, 1:end-1), K ) + method.coeffs[end]
 end
 
 function evaluate(X::Array{Float64, 2}, method::KernelInterpolation)
@@ -64,6 +59,6 @@ function evaluate(X::Array{Float64, 2}, method::KernelInterpolation)
         train!(method)
     end
 
-    Float64[ evaluate(X[i,:], method) for i=1:size(X,1) ]
+    Float64[ evaluate(view(X, i,:), method) for i=1:size(X,1) ]
 end
 
