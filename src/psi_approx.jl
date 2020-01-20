@@ -11,7 +11,7 @@ mutable struct LL_approx
 
     ys::Vector{Function}
 
-    approx_error::Float64
+    approx_errors::Float64
     μ_X::Vector{Float64}
     μ_Y::Vector{Float64}
     σ_X::Vector{Float64}
@@ -28,7 +28,7 @@ function LL_approx( X_train,
                     Y_test  = zeros(Float64, 0, 0),
                     ys = Function[],
                     p_train = 0.8,
-                    approx_error = Inf,
+                    approx_errors = [Inf],
                     normalize = true)
     
     if size(X_train, 1) != size(Y_train, 1)
@@ -65,96 +65,112 @@ function LL_approx( X_train,
     end
 
     LL_approx(models, λ, indexes, X_train, Y_train, X_test, Y_test, ys,
-                approx_error, μ_X, μ_Y, σ_X, σ_Y)
+                approx_errors, μ_X, μ_Y, σ_X, σ_Y)
 end
 
-function gen_y_approx(X, Y; indexes = ones(Bool, size(X, 2)), λ=1e-2)
 
-    Yx = Y
+function fit!(ll_approx::LL_approx)
+    empty!(ll_approx.models)
+    empty!(ll_approx.ys)
 
-    if sum(indexes) == 0 || var(Yx) < 1e-8
-        return x -> mean(Yx)
-    end
-
-    Xtr = X[:, indexes]
-    model = KernelInterpolation(Yx, Xtr, λ=λ, kernel=PeriodicKernel())
-    train!(model)
-    approximate(model) # returns a function ŷ_i
-end
-
-function get_λ(X, Y, Xts, Yts, indexes)
-
-    N = length(Yts)
-
-
-    ff(λ) = begin
-        y = gen_y_approx(X, Y, indexes = indexes, λ = λ[1])
-
-        s = 0.0
-        for i = 1:N
-            y_approx = Ψ_approx(view(Xts, i,:), y, indexes )
-            s += (y_approx - Yts[i])^2
-        end
-        sqrt(s)
-    end
-
-    # res = Metaheuristics.optimize(ff, Array([0.0 1]'), ECA(N= 19,options= Metaheuristics.Options(f_calls_limit=19, debug=false)))
-    # return res.best_sol.x[1], res.best_sol.f
-    
-    # res.best_sol.f = ff([1e-5])
-    # res.best_sol.x = [1e-5]
- vb     return 1e-5, ff([1e-5])
-end
-
-Ψ_approx(x, y, indexes) = y(x[indexes])
-
-function Ψ_approx(x, ys, indexes) 
-    y = zeros(length(ys))
-
-    for i = 1:length(ys)
-        y[i] = ys[i](x[view(indexes, i,:)])
-    end
-    y
-end
-
-function get_indexes(X, Y, Xts, Yts)
-    N, D_ll = size(Yts)
-    D_ul = size(Xts, 2)
-
-    
-    indexes = zeros(Bool, size(Y, 2), size(X, 2))
-    ress = []
-    for i = 1:D_ll
-        @show i
-        ff(indexes) = get_λ(X, Y[:,i], Xts, Yts[:,i], indexes)
-
-        
-        if D_ul > 10
-            indexes_initial = rand(Bool[0, 1], size(X, 2))
-            indexes_new, res = hillClimbing(ff, indexes_initial, iters=100, debug=true, r = 2)
+    for i = 1:size(model.X_train, 2)
+        if sum(indexes) == 0 || var(Yx) < 1e-8
+            y =  x -> mean(Yx)
+            model = KernelInterpolation(zeros(1), zeros(1,1))
         else
-            indexes_new, res = bruteforce(ff, D_ul)
-        end
+            Xtr = view(ll_approx.X_train, :, indexes[i,:])
+            Yx = view(ll_approx.Y_train, :, i)
+            model = KernelInterpolation(Yx, Xtr, λ = ll_approx.λ, kernel=PeriodicKernel())
+            train!(model)
+            y = approximate(model)
 
-        indexes[i, :] =  indexes_new
-        push!(ress, res)        
-        
-        @show indexes_new
+        end
+        # approximate(m) returns a function ŷ_i
+        push!(ll_approx.models, model)
+        push!(model.ys, y)
+
     end
-    
-    indexes, ress
+end
+
+
+function update_approximation_errors!(ll_approx)
+    empty!(ll_approx.approx_errors)
+
+
+    s = zeros(size(ll.approx.Y_train, 2))
+    for i = 1:size(ll.approx.Y_train, 2)
+        y_approx = Ψ_approx(view(ll_approx.X_test, i,:), ll_approx )
+        s += (y_approx - view(ll_approx.Y_test, i, :)).^2
+    end
+
+    ll_approx.approx_errors = sqrt.(s)    
 
 end
 
-function Ψ_approx(X_train, Y_train, X_test, Y_test)
-    ys = Function[]
-    
-    for i = 1:D_ll
-        y = gen_y_approx(X_test, view(Y_test, :, i), indexes=view(indexes, :, i), λ = λ)
-        push!(ys, y)
-    end
 
+function optimize_indexes!(model::LL_approx, debug=false)
+    # D_ul = size(model.X_test, 1)
+    # if D_ul > 10
+        # indexes_initial = rand(Bool[0, 1], size(X_train, 2))
+        # indexes_new, res = hillClimbing(ff, indexes_initial, iters=100, debug=true, r = 2)
+    # else
+    # end
+    bruteforce!(model, debug=debug)
+
+end
+
+function Ψ_approx(x, ll_approx) 
+    y = zeros(length(ll_approx.ys))
+
+    for i = 1:length(ll_approx.ys)
+        y[i] = ll_approx.ys[i](x[view(ll_approx.indexes, i,:)])
+    end
     y
 end
 
+function bruteforce!(ll_approx; debug=false)
+    D = size(ll_approx.X_train, 2)
+    D_ll = size(ll_approx.Y_train, 2)
 
+    approx_errors_old = copy(ll_approx.approx_errors)
+    indexes_best = zeros(D_ll, D)
+
+    for t = 1:2^D
+        x = parse.(Int, collect(bitstring(t)), base=10)
+        reverse!(x)
+
+        x_new = Bool.(x[1:D])
+        indexes = repeat(x_new', D_ll)
+
+
+        ll_approx.indexes = indexes
+
+        fit!(ll_approx)
+        update_approximation_errors!(ll_approx)
+
+
+        for i = 1:D_ll
+            if ll_approx.approx_errors[i] > approx_errors_old[i]
+                approx_errors_old[i] = ll_approx.approx_errors[i]
+                indexes_best[i,:] = indexes[i,:]
+            end
+        end
+
+        if debug
+            println(">>>>>>>>>>>> iter: ", t)
+            display(indexes_best)
+            println("err: ", approx_errors_old)
+        end
+
+    end
+
+    ll_approx.indexes = indexes_best
+
+    fit!(ll_approx)
+    update_approximation_errors!(ll_approx)
+    
+
+    indexes_best
+end
+
+    
