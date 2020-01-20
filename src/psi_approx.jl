@@ -109,7 +109,7 @@ function Ψ_approx(x, ll_approx, scale_data=true)
     y = zeros(length(ll_approx.ys))
 
     if scale_data
-        x = x .* scale_values
+        x = x .* ll_approx.scale_values
     end
     # x = xx[1,:]
 
