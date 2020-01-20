@@ -12,6 +12,7 @@ export approximate
 include("structures.jl")
 include("kernelInterpolation.jl")
 include("approximate.jl")
+include("psi_approx.jl")
 include("deprecated.jl")
 
 end # module
