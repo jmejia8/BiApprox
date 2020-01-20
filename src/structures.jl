@@ -47,10 +47,10 @@ function KernelInterpolation(trainingData::Data;kernel::Kernel = GaussianKernel(
     KernelInterpolation(kernel, trainingData, coeffs, λ)
 end
 
-function KernelInterpolation(Fs::Array, Xs::Array; kernel::Kernel = GaussianKernel(1.0), coeffs::Array = Array[], λ::Float64=0.0)
-    KernelInterpolation(kernel, Data(Fs, Xs), coeffs, λ)
+function KernelInterpolation(Fs, Xs; kernel::Kernel = GaussianKernel(1.0), coeffs::Array = Array[], λ::Float64=0.0)
+    KernelInterpolation(kernel, Data(Array(Fs), Array(Xs)), coeffs, λ)
 end
 
-function KernelInterpolation(F::Function, Xs::Array;kernel::Kernel = GaussianKernel(1.0), coeffs::Array = Array[], λ::Float64=0.0)
-    KernelInterpolation(kernel, Data(F, Xs), coeffs, λ)
+function KernelInterpolation(F::Function, Xs ;kernel::Kernel = GaussianKernel(1.0), coeffs::Array = Array[], λ::Float64=0.0)
+    KernelInterpolation(kernel, Data(F, Array(Xs)), coeffs, λ)
 end
