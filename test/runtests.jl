@@ -46,6 +46,7 @@ function test2()
     X = randn(N, D)
 
     method = KernelInterpolation(f, X)
+    train!(method)
 
     X_test = rand(97, D)
 
@@ -69,9 +70,11 @@ function test3()
     X2 = randn(N, D)
 
     model = KernelInterpolation(f, X; λ = 0.1)
+    train!(model)
     f_approx = approximate(model)
 
     model2 = KernelInterpolation(f, X2; λ = 0.1)
+    train!(model2)
     f_approx2 = approximate(model)
 
     X_test = rand(97, D)
@@ -83,6 +86,25 @@ function test3()
 
 end
 
+function test4()
+    Ψ(x) = [ sum(x.^2), x[1] - x[2].^2, sin(x[3]), abs(x[1]) ]
+
+    X = -10 .+ 20rand(100, 3)
+    Y = zeros(100, 4)
+    
+    for i = 1:size(Y,1)
+        Y[i,:] = Ψ(X[i,:])
+    end
+
+    model = LL_approx(X, Y, p_train=0.8, scale_values=0.1ones(3))
+
+    bruteforce!(model, debug=false)
+
+    sum(model.approx_errors) >= 0
+
+end
+
 @test test1()
 @test test2()
 @test test3()
+@test test4()
