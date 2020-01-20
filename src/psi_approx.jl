@@ -11,7 +11,7 @@ mutable struct LL_approx
 
     ys::Vector{Function}
 
-    approx_errors::Float64
+    approx_errors::Vector{Float64}
     μ_X::Vector{Float64}
     μ_Y::Vector{Float64}
     σ_X::Vector{Float64}
@@ -22,7 +22,7 @@ end
 function LL_approx( X_train,
                     Y_train;
                     models = AbstractModel[],
-                    λ = 1e-5,
+                    λ = [1e-5 for i=1:size(X_train, 2)],
                     indexes = zeros(Bool, 0, 0),
                     X_test  = zeros(Float64, 0, 0),
                     Y_test  = zeros(Float64, 0, 0),
@@ -42,30 +42,30 @@ function LL_approx( X_train,
         σ_Y = std( Y_train, dims=1 )
 
         X_train = ( X_train .- μ_X ) ./ σ_X
-        Y_train = ( Y_train .- μ_Y ) ./ σ_Y
+        # Y_train = ( Y_train .- μ_Y ) ./ σ_Y
     else
-        μ_X = 0.0
-        μ_Y = 0.0
-        σ_X = 0.0
-        σ_Y = 0.0
+        μ_X = [0.0]
+        μ_Y = [0.0]
+        σ_X = [1.0]
+        σ_Y = [1.0]
     end
 
     if (isempty(X_test) || isempty(Y_test))
-        n = round(p*size(X_train, 1))
+        n = round(Int, p_train*size(X_train, 1))
         idx = randperm(size(X_train, 1))
 
         X_test = X_train[idx[n+1:end], :]
-        Y_test = X_train[idx[n+1:end], :]
+        Y_test = Y_train[idx[n+1:end], :]
 
         X_train = X_train[idx[1:n], :]
-        Y_train = X_train[idx[1:n], :]
+        Y_train = Y_train[idx[1:n], :]
     else
         X_test = ( X_test .- μ_X ) ./ σ_X
-        Y_test = ( Y_test .- μ_Y ) ./ σ_Y
+        # Y_test = ( Y_test .- μ_Y ) ./ σ_Y
     end
 
     LL_approx(models, λ, indexes, X_train, Y_train, X_test, Y_test, ys,
-                approx_errors, μ_X, μ_Y, σ_X, σ_Y)
+                approx_errors, vec(μ_X), vec(μ_Y), vec(σ_X), vec(σ_Y))
 end
 
 
@@ -73,21 +73,21 @@ function fit!(ll_approx::LL_approx)
     empty!(ll_approx.models)
     empty!(ll_approx.ys)
 
-    for i = 1:size(model.X_train, 2)
-        if sum(indexes) == 0 || var(Yx) < 1e-8
+    for i = 1:size(ll_approx.X_train, 2)
+        Yx = view(ll_approx.Y_train, :, i)
+        if sum(ll_approx.indexes[i,:]) == 0 || var(Yx) < 1e-8
             y =  x -> mean(Yx)
             model = KernelInterpolation(zeros(1), zeros(1,1))
         else
-            Xtr = view(ll_approx.X_train, :, indexes[i,:])
-            Yx = view(ll_approx.Y_train, :, i)
-            model = KernelInterpolation(Yx, Xtr, λ = ll_approx.λ, kernel=PeriodicKernel())
+            Xtr = view(ll_approx.X_train, :, ll_approx.indexes[i,:])
+            model = KernelInterpolation(Yx, Xtr, λ = ll_approx.λ[i], kernel=PeriodicKernel())
             train!(model)
             y = approximate(model)
 
         end
         # approximate(m) returns a function ŷ_i
         push!(ll_approx.models, model)
-        push!(model.ys, y)
+        push!(ll_approx.ys, y)
 
     end
 end
@@ -97,9 +97,9 @@ function update_approximation_errors!(ll_approx)
     empty!(ll_approx.approx_errors)
 
 
-    s = zeros(size(ll.approx.Y_train, 2))
-    for i = 1:size(ll.approx.Y_train, 2)
-        y_approx = Ψ_approx(view(ll_approx.X_test, i,:), ll_approx )
+    s = zeros(size(ll_approx.Y_train, 2))
+    for i = 1:size(ll_approx.Y_train, 2)
+        y_approx = Ψ_approx(view(ll_approx.X_test, i,:), ll_approx, false)
         s += (y_approx - view(ll_approx.Y_test, i, :)).^2
     end
 
@@ -119,8 +119,13 @@ function optimize_indexes!(model::LL_approx, debug=false)
 
 end
 
-function Ψ_approx(x, ll_approx) 
+function Ψ_approx(x, ll_approx, normalize=true) 
     y = zeros(length(ll_approx.ys))
+
+    if normalize
+        x = (x .- ll_approx.μ_X) ./ ll_approx.σ_X    
+    end
+    # x = xx[1,:]
 
     for i = 1:length(ll_approx.ys)
         y[i] = ll_approx.ys[i](x[view(ll_approx.indexes, i,:)])
@@ -132,7 +137,7 @@ function bruteforce!(ll_approx; debug=false)
     D = size(ll_approx.X_train, 2)
     D_ll = size(ll_approx.Y_train, 2)
 
-    approx_errors_old = copy(ll_approx.approx_errors)
+    approx_errors_old = Inf*ones(D_ll)
     indexes_best = zeros(D_ll, D)
 
     for t = 1:2^D
@@ -150,7 +155,7 @@ function bruteforce!(ll_approx; debug=false)
 
 
         for i = 1:D_ll
-            if ll_approx.approx_errors[i] > approx_errors_old[i]
+            if ll_approx.approx_errors[i] < approx_errors_old[i]
                 approx_errors_old[i] = ll_approx.approx_errors[i]
                 indexes_best[i,:] = indexes[i,:]
             end

@@ -40,7 +40,7 @@ function evaluate(x::Real, method::KernelInterpolation)
     evaluate(Float64[x], method)
 end
 
-function evaluate(x::Array{Float64, 1}, method::KernelInterpolation)
+function evaluate(x, method::KernelInterpolation)
     if length(method.coeffs) == 0
         @info("Training method...")
         train!(method)
@@ -50,7 +50,7 @@ function evaluate(x::Array{Float64, 1}, method::KernelInterpolation)
     k = method.kernel
     K = [kernel(k,x, view(X, i,:)) for i = 1:size(X,1)]
 
-    dot( view(method.coeffs, 1:end-1), K ) + method.coeffs[end]
+    dot( view(method.coeffs, 1:length(method.coeffs)-1), K ) + method.coeffs[end]
 end
 
 function evaluate(X::Array{Float64, 2}, method::KernelInterpolation)
