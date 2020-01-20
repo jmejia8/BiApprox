@@ -12,43 +12,30 @@ mutable struct LL_approx
     ys::Vector{Function}
 
     approx_errors::Vector{Float64}
-    μ_X::Vector{Float64}
-    μ_Y::Vector{Float64}
-    σ_X::Vector{Float64}
-    σ_Y::Vector{Float64}
+    scale_values::Matrix{Float64}
 
 end
 
 function LL_approx( X_train,
                     Y_train;
                     models = AbstractModel[],
-                    λ = [1e-5 for i=1:size(X_train, 2)],
+                    λ = [1e-5 for i=1:size(Y_train, 2)],
                     indexes = zeros(Bool, 0, 0),
                     X_test  = zeros(Float64, 0, 0),
                     Y_test  = zeros(Float64, 0, 0),
                     ys = Function[],
                     p_train = 0.8,
                     approx_errors = [Inf],
-                    normalize = true)
+                    scale_values = ones(1,size(X_train, 2)))
     
     if size(X_train, 1) != size(Y_train, 1)
         @error("Check size of the train set (X_train, Y_train)")
     end
-
-    if normalize
-        μ_X = mean( X_train, dims=1 )
-        μ_Y = mean( Y_train, dims=1 )
-        σ_X = std( X_train, dims=1 )
-        σ_Y = std( Y_train, dims=1 )
-
-        X_train = ( X_train .- μ_X ) ./ σ_X
-        # Y_train = ( Y_train .- μ_Y ) ./ σ_Y
-    else
-        μ_X = [0.0]
-        μ_Y = [0.0]
-        σ_X = [1.0]
-        σ_Y = [1.0]
+    if length(size(scale_values)) == 1
+        scale_values = Array(scale_values')
     end
+
+    X_train = X_train .* scale_values
 
     if (isempty(X_test) || isempty(Y_test))
         n = round(Int, p_train*size(X_train, 1))
@@ -60,12 +47,11 @@ function LL_approx( X_train,
         X_train = X_train[idx[1:n], :]
         Y_train = Y_train[idx[1:n], :]
     else
-        X_test = ( X_test .- μ_X ) ./ σ_X
-        # Y_test = ( Y_test .- μ_Y ) ./ σ_Y
+        X_test = X_test .* scale_values
     end
 
     LL_approx(models, λ, indexes, X_train, Y_train, X_test, Y_test, ys,
-                approx_errors, vec(μ_X), vec(μ_Y), vec(σ_X), vec(σ_Y))
+                approx_errors, scale_values)
 end
 
 
@@ -73,7 +59,7 @@ function fit!(ll_approx::LL_approx)
     empty!(ll_approx.models)
     empty!(ll_approx.ys)
 
-    for i = 1:size(ll_approx.X_train, 2)
+    for i = 1:size(ll_approx.Y_train, 2)
         Yx = view(ll_approx.Y_train, :, i)
         if sum(ll_approx.indexes[i,:]) == 0 || var(Yx) < 1e-8
             y =  x -> mean(Yx)
@@ -98,7 +84,7 @@ function update_approximation_errors!(ll_approx)
 
 
     s = zeros(size(ll_approx.Y_train, 2))
-    for i = 1:size(ll_approx.Y_train, 2)
+    for i = 1:size(ll_approx.X_test, 1)
         y_approx = Ψ_approx(view(ll_approx.X_test, i,:), ll_approx, false)
         s += (y_approx - view(ll_approx.Y_test, i, :)).^2
     end
@@ -119,11 +105,11 @@ function optimize_indexes!(model::LL_approx, debug=false)
 
 end
 
-function Ψ_approx(x, ll_approx, normalize=true) 
+function Ψ_approx(x, ll_approx, scale_data=true) 
     y = zeros(length(ll_approx.ys))
 
-    if normalize
-        x = (x .- ll_approx.μ_X) ./ ll_approx.σ_X    
+    if scale_data
+        x = x .* scale_values
     end
     # x = xx[1,:]
 
