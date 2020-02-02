@@ -19,11 +19,13 @@ function train!(method::KernelInterpolation)
     end
 
     A[N+1, N+1] = 0.0
+    method.kernelMatrix = A
+    method.kernelMatrixInv = inv(A)
 
     # y = Ab
     # b = A⁻¹ ⋅ y
     
-    b = inv(A) * y
+    b = method.kernelMatrixInv * y
 
     method.coeffs = b
     method
@@ -48,9 +50,13 @@ function evaluate(x, method::KernelInterpolation)
 
     X = method.trainingData.Xs
     k = method.kernel
-    K = [kernel(k,x, view(X, i,:)) for i = 1:size(X,1)]
 
-    dot( view(method.coeffs, 1:length(method.coeffs)-1), K ) + method.coeffs[end]
+    s = 0.0
+    for i = 1:size(X,1)
+        s += kernel(k,x, view(X, i,:)) * method.coeffs[i]
+    end
+
+    s + method.coeffs[end]
 end
 
 function evaluate(X::Array{Float64, 2}, method::KernelInterpolation)

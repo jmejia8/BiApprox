@@ -38,19 +38,21 @@ end
 
 mutable struct KernelInterpolation <: AbstractModel
     kernel::Kernel
+    kernelMatrix::Matrix{Float64}
+    kernelMatrixInv::Matrix{Float64}
     trainingData::Data
     coeffs::Array{Float64}
     λ::Float64
 end
 
 function KernelInterpolation(trainingData::Data;kernel::Kernel = GaussianKernel(1.0), coeffs::Array = Array[], λ::Float64=0.0)
-    KernelInterpolation(kernel, trainingData, coeffs, λ)
+    KernelInterpolation(kernel, zeros(0,0), zeros(0,0), trainingData, coeffs, λ)
 end
 
 function KernelInterpolation(Fs, Xs; kernel::Kernel = GaussianKernel(1.0), coeffs::Array = Array[], λ::Float64=0.0)
-    KernelInterpolation(kernel, Data(Array(Fs), Array(Xs)), coeffs, λ)
+    KernelInterpolation(kernel, zeros(0,0), zeros(0,0), Data(Array(Fs), Array(Xs)), coeffs, λ)
 end
 
 function KernelInterpolation(F::Function, Xs ;kernel::Kernel = GaussianKernel(1.0), coeffs::Array = Array[], λ::Float64=0.0)
-    KernelInterpolation(kernel, Data(F, Array(Xs)), coeffs, λ)
+    KernelInterpolation(kernel, zeros(0,0), zeros(0,0), Data(F, Array(Xs)), coeffs, λ)
 end
